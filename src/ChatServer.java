@@ -87,7 +87,7 @@ public class ChatServer {
                         });
                         receivers.add(receiver);
 
-                        Thread heartbeatIncrementer = new Thread(() -> {
+/*                        Thread heartbeatIncrementer = new Thread(() -> {
                             while (true) {
                                 client.incrementHeartbeat();
                                 try {
@@ -98,7 +98,7 @@ public class ChatServer {
                                 System.out.println(client.getSecondsSinceLastHeartbeat());
                             }
                         });
-                        heartbeatIncrementer.start();
+                        heartbeatIncrementer.start();*/
 
                         for (Thread t : receivers) {
                             t.start();
