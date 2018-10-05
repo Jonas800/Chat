@@ -19,116 +19,116 @@ public class ChatServer {
 
                 final Socket socket = server.accept();
 
-                Thread newConnections = new Thread(() -> {
+                System.out.println("Client connected");
+                String clientIp = socket.getInetAddress().getHostAddress();
+                System.out.println("IP: " + clientIp);
+                System.out.println("PORT: " + socket.getPort());
 
-                    System.out.println("Client connected");
-                    String clientIp = socket.getInetAddress().getHostAddress();
-                    System.out.println("IP: " + clientIp);
-                    System.out.println("PORT: " + socket.getPort());
+                String username = "";
 
-                    String username = "";
+                try {
+                    InputStream input = socket.getInputStream();
+                    OutputStream output = socket.getOutputStream();
 
-                    try {
-                        InputStream input = socket.getInputStream();
-                        OutputStream output = socket.getOutputStream();
+                    byte[] dataIn = new byte[1024];
+                    input.read(dataIn);
+                    String msgIn = new String(dataIn);
+                    msgIn = msgIn.trim();
+                    //System.out.println(msgIn);
 
-                        byte[] dataIn = new byte[1024];
-                        input.read(dataIn);
-                        String msgIn = new String(dataIn);
-                        msgIn = msgIn.trim();
-                        //System.out.println(msgIn);
+                    if (msgIn.contains("JOIN")) {
+                        Client client = new Client();
 
-                        if (msgIn.contains("JOIN")) {
-                            Client client = new Client();
+                        int indexOfComma = msgIn.lastIndexOf(",");
+                        username = msgIn.substring(5, indexOfComma);
 
-                            int indexOfComma = msgIn.lastIndexOf(",");
-                            username = msgIn.substring(5, indexOfComma);
+                        String welcomeMessage = username + " has joined the chat";
+                        sendMessage(output, welcomeMessage);
+                        System.out.println(username + ": " + msgIn);
 
-                            String welcomeMessage = username + " has joined the chat";
-                            sendMessage(output, welcomeMessage);
-                            System.out.println(username + ": " + msgIn);
+                        client.setIp(socket.getInetAddress().getHostAddress());
+                        client.setUsername(username);
+                        client.setSocket(socket);
+                        client.setInput(socket.getInputStream());
+                        client.setOutput(socket.getOutputStream());
+                        clients.add(client);
 
-                            client.setIp(socket.getInetAddress().getHostAddress());
-                            client.setUsername(username);
-                            client.setSocket(socket);
-                            client.setInput(socket.getInputStream());
-                            client.setOutput(socket.getOutputStream());
-                            clients.add(client);
-
-                            ArrayList<Thread> receivers = new ArrayList<>();
-                            Thread receiver = new Thread(() -> {
-                                while (true) {
-                                    try {
-                                        InputStream inputStream = client.getInput();
-                                        byte[] dataFromClient = new byte[1024];
-                                        inputStream.read(dataFromClient);
-                                        String msgFromClient = new String(dataFromClient);
-                                        msgFromClient = msgFromClient.trim();
-
-                                        if (msgFromClient.equals("IMAV")) {
-                                            client.setSecondsSinceLastHeartbeat(0);
-                                        } else {
-
-                                            String msgToAllClients = client.getUsername() + ": " + msgFromClient;
-                                            System.out.println(msgToAllClients);
-                                            for (Client c : clients) {
-                                                sendMessage(c.getOutput(), msgToAllClients);
-                                            }
-                                        }
-                                        if (client.getSecondsSinceLastHeartbeat() > 128) {
-                                            client.getOutput().close();
-                                        }
-                                    } catch (IOException e) {
-                                        e.printStackTrace();
-                                    }
-                                }
-                            });
-                            receivers.add(receiver);
-
-                            Thread heartbeatIncrementer = new Thread(() -> {
-                                while (true) {
-                                    client.incrementHeartbeat();
-                                    try {
-                                        Thread.sleep(1000);
-                                    } catch (InterruptedException e) {
-                                        e.printStackTrace();
-                                    }
-                                    System.out.println(client.getSecondsSinceLastHeartbeat());
-                                }
-                            });
-                            heartbeatIncrementer.start();
-
-                            for (Thread t : receivers) {
-                                t.start();
-                            }
-                            for (Thread t : receivers) {
+                        ArrayList<Thread> receivers = new ArrayList<>();
+                        Thread receiver = new Thread(() -> {
+                            while (true) {
                                 try {
-                                    t.join();
-                                } catch (InterruptedException e) {
+                                    InputStream inputStream = client.getInput();
+                                    byte[] dataFromClient = new byte[1024];
+                                    inputStream.read(dataFromClient);
+                                    String msgFromClient = new String(dataFromClient);
+                                    msgFromClient = msgFromClient.trim();
+
+                                    if (msgFromClient.equals("QUIT")) {
+                                        socket.close();
+                                        break;
+                                    } else if (msgFromClient.equals("IMAV")) {
+                                        client.setSecondsSinceLastHeartbeat(0);
+                                    } else {
+
+                                        String msgToAllClients = client.getUsername() + ": " + msgFromClient;
+                                        System.out.println(msgToAllClients);
+                                        for (Client c : clients) {
+                                            sendMessage(c.getOutput(), msgToAllClients);
+                                        }
+                                    }
+                                    if (client.getSecondsSinceLastHeartbeat() > 10) {
+                                        socket.close();
+                                        break;
+                                    }
+                                } catch (IOException e) {
                                     e.printStackTrace();
                                 }
                             }
-                        } else if (msgIn.equals("IMAV")) {
-                            //do nothing?
-                            //System.out.println("test");
-                            //remove this
-                        } else {
-                            //???????
-                            //String msgToSend = username + ": " + msgIn;
-                            //System.out.println(msgToSend);
-                            //sendMessage(output, msgToSend);
-                            //Send error msg
+                        });
+                        receivers.add(receiver);
+
+                        Thread heartbeatIncrementer = new Thread(() -> {
+                            while (true) {
+                                client.incrementHeartbeat();
+                                try {
+                                    Thread.sleep(1000);
+                                } catch (InterruptedException e) {
+                                    e.printStackTrace();
+                                }
+                                System.out.println(client.getSecondsSinceLastHeartbeat());
+                            }
+                        });
+                        heartbeatIncrementer.start();
+
+                        for (Thread t : receivers) {
+                            t.start();
                         }
-
-                    } catch (IOException e) {
-                        e.printStackTrace();
-
+                        for (Thread t : receivers) {
+                            try {
+                                t.join();
+                            } catch (InterruptedException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    } else if (msgIn.equals("IMAV")) {
+                        //do nothing?
+                        //System.out.println("test");
+                        //remove this
+                    } else {
+                        //???????
+                        //String msgToSend = username + ": " + msgIn;
+                        //System.out.println(msgToSend);
+                        //sendMessage(output, msgToSend);
+                        //Send error msg
                     }
-                });
-                newConnections.start();
 
+                } catch (IOException e) {
+                    e.printStackTrace();
 
+                }
             }
+
+
         } catch (IOException e) {
             e.printStackTrace();
         }
