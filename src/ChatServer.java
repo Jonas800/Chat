@@ -21,14 +21,11 @@ public class ChatServer {
 
                 System.out.println("Client connected");
                 String clientIp = socket.getInetAddress().getHostAddress();
-                System.out.println("IP: " + clientIp);
-                System.out.println("PORT: " + socket.getPort());
 
                 String username = "";
 
                 try {
                     InputStream input = socket.getInputStream();
-                    OutputStream output = socket.getOutputStream();
 
                     byte[] dataIn = new byte[1024];
                     input.read(dataIn);
@@ -42,10 +39,14 @@ public class ChatServer {
                         int indexOfComma = msgIn.lastIndexOf(",");
                         username = msgIn.substring(5, indexOfComma);
 
-                        String welcomeMessage = username + " has joined the chat";
-                        sendMessage(output, welcomeMessage);
-                        System.out.println(username + ": " + msgIn);
+                        System.out.println("IP: " + clientIp);
+                        System.out.println("PORT: " + socket.getPort());
+                        System.out.println("USERNAME :" + username);
 
+                        String welcomeMessage = "SERVER: " + username + " has joined the chat";
+                        sendToAll(clients, welcomeMessage);
+
+                        client.setConnected(true);
                         client.setIp(socket.getInetAddress().getHostAddress());
                         client.setUsername(username);
                         client.setSocket(socket);
@@ -55,7 +56,7 @@ public class ChatServer {
 
                         ArrayList<Thread> receivers = new ArrayList<>();
                         Thread receiver = new Thread(() -> {
-                            while (true) {
+                            while (client.isConnected()) {
                                 try {
                                     InputStream inputStream = client.getInput();
                                     byte[] dataFromClient = new byte[1024];
@@ -63,76 +64,40 @@ public class ChatServer {
                                     String msgFromClient = new String(dataFromClient);
                                     msgFromClient = msgFromClient.trim();
 
-                                    if (msgFromClient.equals("QUIT")) {
-                                        socket.close();
+                                    if(msgFromClient.contains("JOIN")){
+                                        //don't print anything
+                                    }
+                                    else if (msgFromClient.equals("QUIT")) {
+                                        System.out.println("SERVER: " + client.getUsername() + " left the chat");
+                                        client.setConnected(false);
                                         break;
                                     } else if (msgFromClient.equals("IMAV")) {
                                         client.setSecondsSinceLastHeartbeat(0);
                                     } else {
-
                                         String msgToAllClients = client.getUsername() + ": " + msgFromClient;
                                         System.out.println(msgToAllClients);
-                                        for (Client c : clients) {
-                                            sendMessage(c.getOutput(), msgToAllClients);
-                                        }
+                                        sendToAll(clients, msgToAllClients);
                                     }
-                                    if (client.getSecondsSinceLastHeartbeat() > 10) {
-                                        socket.close();
-                                        break;
-                                    }
+                                    System.out.println(client.isConnected());
                                 } catch (IOException e) {
                                     e.printStackTrace();
                                 }
+
                             }
                         });
                         receivers.add(receiver);
 
-/*                        Thread heartbeatIncrementer = new Thread(() -> {
-                            while (true) {
-                                client.incrementHeartbeat();
-                                try {
-                                    Thread.sleep(1000);
-                                } catch (InterruptedException e) {
-                                    e.printStackTrace();
-                                }
-                                System.out.println(client.getSecondsSinceLastHeartbeat());
-                            }
-                        });
-                        heartbeatIncrementer.start();*/
-
                         for (Thread t : receivers) {
                             t.start();
                         }
-                        for (Thread t : receivers) {
-                            try {
-                                t.join();
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    } else if (msgIn.equals("IMAV")) {
-                        //do nothing?
-                        //System.out.println("test");
-                        //remove this
-                    } else {
-                        //???????
-                        //String msgToSend = username + ": " + msgIn;
-                        //System.out.println(msgToSend);
-                        //sendMessage(output, msgToSend);
-                        //Send error msg
                     }
-
                 } catch (IOException e) {
                     e.printStackTrace();
-
                 }
             }
-
-
         } catch (IOException e) {
             e.printStackTrace();
         }
-
     }
 
     public static void sendMessage(OutputStream output, String message) {
@@ -141,6 +106,14 @@ public class ChatServer {
             output.write(dataToSend);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+    public static void sendToAll(ArrayList<Client> clients, String message){
+        //check active list here???? don't like it
+        for (Client c : clients) {
+            if (c.isConnected()) {
+                sendMessage(c.getOutput(), message);
+            }
         }
     }
 }
