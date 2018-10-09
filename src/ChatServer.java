@@ -34,61 +34,69 @@ public class ChatServer {
                     //System.out.println(msgIn);
 
                     if (msgIn.contains("JOIN")) {
-                        Client client = new Client();
 
                         int indexOfComma = msgIn.lastIndexOf(",");
                         username = msgIn.substring(5, indexOfComma);
 
                         System.out.println("IP: " + clientIp);
                         System.out.println("PORT: " + socket.getPort());
-                        System.out.println("USERNAME :" + username);
+                        System.out.println("USERNAME: " + username);
 
                         String welcomeMessage = "SERVER: " + username + " has joined the chat";
                         sendToAll(clients, welcomeMessage);
 
-                        client.setConnected(true);
-                        client.setIp(socket.getInetAddress().getHostAddress());
-                        client.setUsername(username);
-                        client.setSocket(socket);
-                        client.setInput(socket.getInputStream());
-                        client.setOutput(socket.getOutputStream());
-                        clients.add(client);
+                        UsernameChecker usernameChecker = UsernameChecker.getInstance(clients);
+                        usernameChecker.checkUsername(username);
+                        if (usernameChecker.isOK()) {
 
-                        ArrayList<Thread> receivers = new ArrayList<>();
-                        Thread receiver = new Thread(() -> {
-                            while (client.isConnected()) {
-                                try {
-                                    InputStream inputStream = client.getInput();
-                                    byte[] dataFromClient = new byte[1024];
-                                    inputStream.read(dataFromClient);
-                                    String msgFromClient = new String(dataFromClient);
-                                    msgFromClient = msgFromClient.trim();
+                            sendMessage(socket.getOutputStream(), usernameChecker.getMessage());
 
-                                    if(msgFromClient.contains("JOIN")){
-                                        //don't print anything
+                            Client client = new Client();
+                            client.setConnected(true);
+                            client.setIp(socket.getInetAddress().getHostAddress());
+                            client.setUsername(username);
+                            client.setSocket(socket);
+                            client.setInput(socket.getInputStream());
+                            client.setOutput(socket.getOutputStream());
+                            clients.add(client);
+
+                            ArrayList<Thread> receivers = new ArrayList<>();
+                            Thread receiver = new Thread(() -> {
+                                while (client.isConnected()) {
+                                    try {
+                                        InputStream inputStream = client.getInput();
+                                        byte[] dataFromClient = new byte[1024];
+                                        inputStream.read(dataFromClient);
+                                        String msgFromClient = new String(dataFromClient);
+                                        msgFromClient = msgFromClient.trim();
+
+                                        if (msgFromClient.contains("JOIN")) {
+                                            //don't print anything
+                                        } else if (msgFromClient.equals("QUIT")) {
+                                            System.out.println("SERVER: " + client.getUsername() + " left the chat");
+                                            client.setConnected(false);
+                                            break;
+                                        } else if (msgFromClient.equals("IMAV")) {
+                                            client.setSecondsSinceLastHeartbeat(0);
+                                        } else {
+                                            String msgToAllClients = client.getUsername() + ": " + msgFromClient;
+                                            System.out.println(msgToAllClients);
+                                            sendToAll(clients, msgToAllClients);
+                                        }
+                                        System.out.println(client.isConnected());
+                                    } catch (IOException e) {
+                                        e.printStackTrace();
                                     }
-                                    else if (msgFromClient.equals("QUIT")) {
-                                        System.out.println("SERVER: " + client.getUsername() + " left the chat");
-                                        client.setConnected(false);
-                                        break;
-                                    } else if (msgFromClient.equals("IMAV")) {
-                                        client.setSecondsSinceLastHeartbeat(0);
-                                    } else {
-                                        String msgToAllClients = client.getUsername() + ": " + msgFromClient;
-                                        System.out.println(msgToAllClients);
-                                        sendToAll(clients, msgToAllClients);
-                                    }
-                                    System.out.println(client.isConnected());
-                                } catch (IOException e) {
-                                    e.printStackTrace();
+
                                 }
+                            });
+                            receivers.add(receiver);
 
+                            for (Thread t : receivers) {
+                                t.start();
                             }
-                        });
-                        receivers.add(receiver);
-
-                        for (Thread t : receivers) {
-                            t.start();
+                        } else{
+                            sendMessage(socket.getOutputStream(), usernameChecker.getMessage());
                         }
                     }
                 } catch (IOException e) {

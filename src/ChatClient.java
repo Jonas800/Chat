@@ -28,7 +28,7 @@ public class ChatClient {
                     String username = line.substring(5, indexOfComma);
                     //System.out.println(username);
 
-                    if (username.matches("^[a-zA-Z\\d-_]{0,12}$")) {
+                    //if (username.matches("^[a-zA-Z\\d-_]{0,12}$")) {
                         String server_ip = line.substring(indexOfComma + 2, indexOfColon);
                         //System.out.println(server_ip);
                         int server_port = Integer.parseInt(line.substring(indexOfColon + 1));
@@ -80,9 +80,9 @@ public class ChatClient {
                             }
                         });
                         heartBeater.start();
-                    } else {
+                    /*} else {
                         System.out.println("Username is malformed:\n Please enter new username with with letters, digits, underscore or hyphen.\n Must not be longer than 12 characters.");
-                    }
+                    }*/
                 } catch (StringIndexOutOfBoundsException | IOException e) {
                     e.printStackTrace();
                 }
