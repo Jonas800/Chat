@@ -60,6 +60,16 @@ public class ChatServer {
                             client.setOutput(socket.getOutputStream());
                             clients.add(client);
 
+                            String allClients = "SERVER: <Clients in chat: ";
+                            for (Client c : clients) {
+                                allClients += c.getUsername() + ", ";
+                            }
+                            allClients = allClients.substring(0, allClients.length()-2);
+
+                            allClients += ">";
+
+                            sendToAll(clients, allClients);
+
                             ArrayList<Thread> receivers = new ArrayList<>();
                             Thread receiver = new Thread(() -> {
                                 while (client.isConnected()) {
@@ -78,14 +88,24 @@ public class ChatServer {
                                             break;
                                         } else if (msgFromClient.equals("IMAV")) {
                                             client.setSecondsSinceLastHeartbeat(0);
+                                        } else if(msgFromClient.contains("DATA")){
+                                            int firstIndexOfColon = msgFromClient.indexOf(":");
+                                            msgFromClient = msgFromClient.substring(firstIndexOfColon+2);
+                                            String msgToAllClients = client.getUsername() + ": " + msgFromClient;
+                                            sendToAll(clients, msgToAllClients);
+                                            System.out.println(msgToAllClients);
                                         } else {
                                             String msgToAllClients = client.getUsername() + ": " + msgFromClient;
                                             System.out.println(msgToAllClients);
                                             sendToAll(clients, msgToAllClients);
                                         }
-                                        System.out.println(client.isConnected());
+                                        //System.out.println(client.isConnected());
                                     } catch (IOException e) {
-                                        e.printStackTrace();
+                                        clients.remove(client);
+                                        System.out.println("SERVER: " + client.getUsername() + " left the chat");
+                                        sendToAll(clients,"SERVER: " + client.getUsername() + " has left the chat");
+                                        client.setConnected(false);
+                                        break;
                                     }
 
                                 }
@@ -97,13 +117,16 @@ public class ChatServer {
                             }
                         } else{
                             sendMessage(socket.getOutputStream(), usernameChecker.getMessage());
+                            socket.close();
                         }
                     }
                 } catch (IOException e) {
+                    //System.out.println("test");
                     e.printStackTrace();
                 }
             }
         } catch (IOException e) {
+            //System.out.println("test2");
             e.printStackTrace();
         }
     }

@@ -16,7 +16,7 @@ public class Client {
         while (isConnected()) {
             try {
                 incrementHeartbeat();
-                if (getSecondsSinceLastHeartbeat() > 10) {
+                if (getSecondsSinceLastHeartbeat() > 180) {
                     setConnected(false);
                     break;
                 }
@@ -24,7 +24,7 @@ public class Client {
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
-            System.out.println(getSecondsSinceLastHeartbeat());
+            //System.out.println(getSecondsSinceLastHeartbeat());
         }
     });
 

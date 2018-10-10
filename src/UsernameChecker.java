@@ -25,14 +25,6 @@ public class UsernameChecker {
         isOK = OK;
     }
 
-    public String getCode() {
-        return code;
-    }
-
-    public void setCode(String code) {
-        this.code = code;
-    }
-
     public ArrayList<Client> getClients() {
         return clients;
     }
@@ -41,19 +33,25 @@ public class UsernameChecker {
         this.clients = clients;
     }
 
-    public void checkUsername(String username) {
+    public void checkUsername(String username){
+        checkUsername(username, clients);
+    }
+
+    public void checkUsername(String username, ArrayList<Client> clients) {
         if (username.matches("^[a-zA-Z\\d-_]{0,12}$")) {
             isOK = true;
             message = "J_OK";
         } else{
             isOK = false;
-            message = "J_ER 99: Username is malformed";
+            message = "J_ER 99: Username is malformed:\n Please enter new username with with letters, digits, underscore or hyphen.\n Must not be longer than 12 characters.";
+            System.out.println(message);
         }
 
         for (Client c : clients) {
             if (c.getUsername().equals(username)) {
                 isOK = false;
                 message = "J_ER 111: Username is taken";
+                System.out.println(message);
             }
         }
     }
